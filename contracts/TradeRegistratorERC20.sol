@@ -10,11 +10,11 @@ contract TradeRegistratorERC20 is Context {
 
     uint256 public lockTime = 2 hours;
 
-    mapping(bytes32 => Trade) public trades;
+    mapping(bytes32 => TransferInfo) public transfers;
 
     enum Status { REGISTERED, CLAIMED, COMPLETED, WITHDRAWN }
 
-    struct Trade {
+    struct TransferInfo {
         address poster;
         address asset;
         uint256 amount;
@@ -24,7 +24,7 @@ contract TradeRegistratorERC20 is Context {
         uint256 deadline;
     }
 
-    event NewTrade(
+    event NewTransfer(
         address poster,
         address asset,
         uint256 amount,
@@ -57,7 +57,7 @@ contract TradeRegistratorERC20 is Context {
 
         uint256 lockTime_ = lockTime;
 
-        trades[_tradeHash] = Trade(
+        transfers[_tradeHash] = TransferInfo(
             _msgSender(),
             _tokenAddress,
             _amount, 
@@ -70,7 +70,7 @@ contract TradeRegistratorERC20 is Context {
         IERC20(_tokenAddress).safeTransferFrom(_msgSender(), address(this), _amount);
 
 
-        emit NewTrade(
+        emit NewTransfer(
             _msgSender(),
             _tokenAddress,
             _amount,
@@ -108,15 +108,15 @@ contract TradeRegistratorERC20 is Context {
     */
 
     function withdraw(bytes32 _tradeHash) external {
-        Trade memory trade = trades[_tradeHash];
+        TransferInfo memory transfer = transfers[_tradeHash];
         require(
-            trade.status != Status.COMPLETED && 
-            trade.status != Status.WITHDRAWN, 
+            transfer.status != Status.COMPLETED && 
+            transfer.status != Status.WITHDRAWN, 
             "invalid trade status"
         );
-        require(block.timestamp > trade.deadline, "deadline isn't passed");
-        IERC20(trade.asset).safeTransfer(trade.poster, trade.amount);
-        trades[_tradeHash].status = Status.WITHDRAWN;
+        require(block.timestamp > transfer.deadline, "deadline isn't passed");
+        IERC20(transfer.asset).safeTransfer(transfer.poster, transfer.amount);
+        transfers[_tradeHash].status = Status.WITHDRAWN;
     }
 
     function calculatePenalty() public {
