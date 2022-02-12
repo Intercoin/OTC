@@ -44,13 +44,14 @@ contract TradeRegistratorERC20 is Context {
     * @param _receiverAddress The address of the receiver of the token
     * @param _penaltyAmount The max amount of penalty in the native currency
     */
+
     function post(
         bytes32 _tradeHash, 
         uint256 _amount, 
         address _tokenAddress, 
         address _receiverAddress, 
         uint256 _penaltyAmount,
-        uint8 _network
+        uint8 _network  
     ) external {
 
         require(_tradeHash != bytes32(0), "null trade hash");
@@ -125,7 +126,17 @@ contract TradeRegistratorERC20 is Context {
         transfers[_tradeHash].status = Status.WITHDRAWN;
     }
 
-    function calculatePenalty() public {
-        
+    function calculatePenalty(bytes32 _tradeHash) public view returns(uint256){
+        TransferInfo memory transfer = transfers[_tradeHash];
+        uint256 lockTime_ = lockTime;
+        uint256 penaltyStartsAt = transfer.deadline - lockTime_ * 2 / 3;
+        uint256 penaltyIsMaxAt = penaltyStartsAt + lockTime_ / 6;
+        if (block.timestamp <= penaltyStartsAt) {
+            return 0;
+        } else if (block.timestamp >= penaltyIsMaxAt) {
+            return transfer.maxPenalty;
+        } else {
+            return transfer.maxPenalty * (block.timestamp - penaltyStartsAt) ** 2 / (penaltyIsMaxAt - penaltyStartsAt) ** 2;
+        }
     }
 }
