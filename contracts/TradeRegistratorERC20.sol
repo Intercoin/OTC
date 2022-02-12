@@ -15,6 +15,7 @@ contract TradeRegistratorERC20 is Context {
     enum Status { REGISTERED, CLAIMED, COMPLETED, WITHDRAWN }
 
     struct TransferInfo {
+        uint8 network;
         address poster;
         address asset;
         uint256 amount;
@@ -22,6 +23,7 @@ contract TradeRegistratorERC20 is Context {
         Status status;
         uint256 maxPenalty;
         uint256 deadline;
+        bytes32[] signatures;
     }
 
     event NewTransfer(
@@ -47,7 +49,8 @@ contract TradeRegistratorERC20 is Context {
         uint256 _amount, 
         address _tokenAddress, 
         address _receiverAddress, 
-        uint256 _penaltyAmount
+        uint256 _penaltyAmount,
+        uint8 _network
     ) external {
 
         require(_tradeHash != bytes32(0), "null trade hash");
@@ -56,15 +59,18 @@ contract TradeRegistratorERC20 is Context {
         require(_receiverAddress != address(0), "zero receiver address");
 
         uint256 lockTime_ = lockTime;
+        bytes32[] memory emptyArray;
 
         transfers[_tradeHash] = TransferInfo(
+            _network,
             _msgSender(),
             _tokenAddress,
             _amount, 
             _receiverAddress,
             Status.REGISTERED,
             _penaltyAmount,
-            block.timestamp + lockTime_
+            block.timestamp + lockTime_,
+            emptyArray
         );
 
         IERC20(_tokenAddress).safeTransferFrom(_msgSender(), address(this), _amount);
