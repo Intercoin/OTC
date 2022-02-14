@@ -47,7 +47,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _penaltyAmount The max amount of penalty in the native currency
     */
 
-    function post(
+    function lock(
         bytes32 _tradeHash, 
         uint256 _amount, 
         address _tokenAddress, 
@@ -96,7 +96,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _tradeHash The hash of the trade
     * @param _signature The signature of the receiver
     */
-    function claim(bytes32 _tradeHash, bytes memory _signature) external {
+    function publish(bytes32 _tradeHash, bytes memory _signature) external {
         TransferInfo memory transfer = transfers[_tradeHash];
         require(transfer.status == Status.REGISTERED, "trade not found");
         require(_msgSender() == transfer.receiver, "must be called by receiver");
@@ -105,7 +105,6 @@ contract TradeRegistratorERC20 is Context {
         if (penalty > 0) transfers[_tradeHash].withdrawPenalty = penalty;
         transfers[_tradeHash].signatures[0] = _signature;
         transfers[_tradeHash].status = Status.CLAIMED;
-
     }
 
     /**
@@ -115,7 +114,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _signatures The array of trade participants's signatures
     */
 
-    function repost(bytes32 _tradeHash, bytes32[] memory _signatures) external {
+    function claim(bytes32 _tradeHash, bytes32[] memory _signatures) external {
 
     }
 
