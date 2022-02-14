@@ -23,6 +23,7 @@ contract TradeRegistratorERC20 is Context {
         uint256 maxPenalty;
         uint256 deadline;
         bytes32[] signatures;
+        uint256 withdrawPenalty;
     }
 
     event NewTransfer(
@@ -69,7 +70,8 @@ contract TradeRegistratorERC20 is Context {
             Status.REGISTERED,
             _penaltyAmount,
             block.timestamp + lockTime_,
-            emptyArray
+            emptyArray,
+            0
         );
 
         IERC20(_tokenAddress).safeTransferFrom(_msgSender(), address(this), _amount);
@@ -93,7 +95,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _signature The signature of the receiver
     */
     function claim(bytes32 _tradeHash, bytes32 _signature) external {
-        
+
     }
 
     /**
