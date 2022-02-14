@@ -14,6 +14,7 @@ const kovanURL = `https://eth-kovan.alchemyapi.io/v2/${process.env.ALCHEMY_KOVAN
 const goerliURL = `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_GOERLI}`
 const rinkebyURL = `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_RINKEBY}`
 const mainnetURL = `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET}`
+const bscTestnetURL = `https://data-seed-prebsc-1-s1.binance.org:8545/`
 
 module.exports = {
   networks: {
@@ -47,6 +48,13 @@ module.exports = {
       gasPrice: 20000000000,
       accounts: {mnemonic: process.env.MNEMONIC},
       saveDeployments: true
+    },
+    bscTestnet: {
+      url: bscTestnetURL,
+      chainId: 97,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: process.env.MNEMONIC},
+      saveDeployments: true
     }
   },
   gasReporter: {
@@ -54,7 +62,7 @@ module.exports = {
     currency: "USD"
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: process.env.BSCSCAN_API_KEY,
   },
   solidity: {
     compilers: [
