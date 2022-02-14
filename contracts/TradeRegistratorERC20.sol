@@ -14,7 +14,7 @@ contract TradeRegistratorERC20 is Context {
 
     mapping(bytes32 => TransferInfo) public transfers;
 
-    enum Status { REGISTERED, CLAIMED, COMPLETED, WITHDRAWN }
+    enum Status { NONEXIST, REGISTERED, PUBLISHED, COMPLETED, WITHDRAWN }
 
     struct TransferInfo {
         address poster;
@@ -59,7 +59,7 @@ contract TradeRegistratorERC20 is Context {
         require(_amount > 0, "zero amount");
         require(_tokenAddress != address(0), "zero asset address");
         require(_receiverAddress != address(0), "zero receiver address");
-        require(transfers[_tradeHash].deadline == 0, "trade already registered");
+        require(transfers[_tradeHash].status == Status.NONEXIST, "trade already exists");
 
         uint256 lockTime_ = lockTime;
         bytes[] memory emptyArray;
@@ -98,25 +98,33 @@ contract TradeRegistratorERC20 is Context {
     */
     function publish(bytes32 _tradeHash, bytes memory _signature) external {
         TransferInfo memory transfer = transfers[_tradeHash];
-        require(transfer.status == Status.REGISTERED, "trade not found");
+        require(transfer.status == Status.REGISTERED, "trade not registered or finished");
         require(_msgSender() == transfer.receiver, "must be called by receiver");
         require(_msgSender().isValidSignatureNow(_tradeHash, _signature), "signature is invalid");
         uint256 penalty = calculatePenalty(_tradeHash);
         if (penalty > 0) transfers[_tradeHash].withdrawPenalty = penalty;
         transfers[_tradeHash].signatures[0] = _signature;
-        transfers[_tradeHash].status = Status.CLAIMED;
+        transfers[_tradeHash].status = Status.PUBLISHED;
     }
 
     /**
     * @notice Checks the validity of the provided signatures and give the locked
     * assets to the sender of the transaction, while charging the sender a penalty, if any
     * @param _tradeHash The hash of the trade
-    * @param _signatures The array of trade participants's signatures
+    * @param _signatures The array of trade participants's signatures (0 - poster, 1 - receiver)
     */
 
-    function claim(bytes32 _tradeHash, bytes32[] memory _signatures) external {
+    function claim(bytes32 _tradeHash, bytes[] memory _signatures) external payable {
+        TransferInfo memory transfer = transfers[_tradeHash];
+        require(_msgSender() == transfer.receiver, "must be called by receiver");
+        require(msg.value > transfer.withdrawPenalty, "not enough ETH");
+        require(transfer.status == Status.REGISTERED || transfer.status == Status.PUBLISHED, "trade completed or failed");
+        require(transfer.poster.isValidSignatureNow(_tradeHash, _signatures[0]), "signature is invalid");
+        require(transfer.receiver.isValidSignatureNow(_tradeHash, _signatures[1]), "signature is invalid");
+        IERC20(transfer.asset).transfer(transfer.receiver, transfer.amount);
+        transfers[_tradeHash].status = Status.COMPLETED;
 
-    }
+    }   
 
     /**
     * @notice Returns money to the owner if trade wasn't completed (deadline is passed)
@@ -130,6 +138,7 @@ contract TradeRegistratorERC20 is Context {
             transfer.status != Status.WITHDRAWN, 
             "invalid trade status"
         );
+        require(_msgSender() == transfer.poster, "caller is not poster");
         require(block.timestamp > transfer.deadline, "deadline isn't passed");
         IERC20(transfer.asset).safeTransfer(transfer.poster, transfer.amount);
         transfers[_tradeHash].status = Status.WITHDRAWN;
