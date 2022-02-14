@@ -3,10 +3,12 @@ pragma solidity ^0.8.11;
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 contract TradeRegistratorERC20 is Context {
 
     using SafeERC20 for IERC20;
+    using SignatureChecker for address;
 
     uint256 public lockTime = 2 hours;
 
@@ -94,8 +96,10 @@ contract TradeRegistratorERC20 is Context {
     * @param _tradeHash The hash of the trade
     * @param _signature The signature of the receiver
     */
-    function claim(bytes32 _tradeHash, bytes32 _signature) external {
-
+    function claim(bytes32 _tradeHash, bytes memory _signature) external {
+        TransferInfo memory transfer = transfers[_tradeHash];
+        require(transfer.status == Status.REGISTERED, "trade not found");
+        require(_msgSender().isValidSignatureNow(_tradeHash, _signature), "signature is invalid");
     }
 
     /**
