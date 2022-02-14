@@ -24,7 +24,7 @@ contract TradeRegistratorERC20 is Context {
         Status status;
         uint256 maxPenalty;
         uint256 deadline;
-        bytes32[] signatures;
+        bytes[] signatures;
         uint256 withdrawPenalty;
     }
 
@@ -62,7 +62,7 @@ contract TradeRegistratorERC20 is Context {
         require(transfers[_tradeHash].deadline == 0, "trade already registered");
 
         uint256 lockTime_ = lockTime;
-        bytes32[] memory emptyArray;
+        bytes[] memory emptyArray;
 
         transfers[_tradeHash] = TransferInfo(
             _msgSender(),
@@ -99,7 +99,13 @@ contract TradeRegistratorERC20 is Context {
     function claim(bytes32 _tradeHash, bytes memory _signature) external {
         TransferInfo memory transfer = transfers[_tradeHash];
         require(transfer.status == Status.REGISTERED, "trade not found");
+        require(_msgSender() == transfer.receiver, "must be called by receiver");
         require(_msgSender().isValidSignatureNow(_tradeHash, _signature), "signature is invalid");
+        uint256 penalty = calculatePenalty(_tradeHash);
+        if (penalty > 0) transfers[_tradeHash].withdrawPenalty = penalty;
+        transfers[_tradeHash].signatures[0] = _signature;
+        transfers[_tradeHash].status = Status.CLAIMED;
+
     }
 
     /**
