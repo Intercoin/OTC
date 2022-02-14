@@ -15,7 +15,6 @@ contract TradeRegistratorERC20 is Context {
     enum Status { REGISTERED, CLAIMED, COMPLETED, WITHDRAWN }
 
     struct TransferInfo {
-        uint8 network;
         address poster;
         address asset;
         uint256 amount;
@@ -50,20 +49,19 @@ contract TradeRegistratorERC20 is Context {
         uint256 _amount, 
         address _tokenAddress, 
         address _receiverAddress, 
-        uint256 _penaltyAmount,
-        uint8 _network  
+        uint256 _penaltyAmount
     ) external {
 
         require(_tradeHash != bytes32(0), "null trade hash");
         require(_amount > 0, "zero amount");
         require(_tokenAddress != address(0), "zero asset address");
         require(_receiverAddress != address(0), "zero receiver address");
+        require(transfers[_tradeHash].deadline == 0, "trade already registered");
 
         uint256 lockTime_ = lockTime;
         bytes32[] memory emptyArray;
 
         transfers[_tradeHash] = TransferInfo(
-            _network,
             _msgSender(),
             _tokenAddress,
             _amount, 
@@ -95,7 +93,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _signature The signature of the receiver
     */
     function claim(bytes32 _tradeHash, bytes32 _signature) external {
-
+        
     }
 
     /**
