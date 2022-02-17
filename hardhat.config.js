@@ -15,6 +15,8 @@ const goerliURL = `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_GOE
 const rinkebyURL = `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_RINKEBY}`
 const mainnetURL = `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET}`
 const bscTestnetURL = `https://data-seed-prebsc-1-s1.binance.org:8545/`
+const fantomTestnetURL = "https://rpcapi-tracing.testnet.fantom.network";
+
 
 module.exports = {
   networks: {
@@ -55,14 +57,22 @@ module.exports = {
       gasPrice: 20000000000,
       accounts: {mnemonic: process.env.MNEMONIC},
       saveDeployments: true
-    }
+    },
+    fantom_testnet: {
+      url: fantomTestnetURL,
+      chainId: 0xfa2,
+      gasPrice: 200000000000,
+      accounts: {mnemonic: process.env.MNEMONIC},
+      saveDeployments: true,
+      skipIfAlreadyDeployed: true
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD"
   },
   etherscan: {
-    apiKey: process.env.BSCSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   solidity: {
     compilers: [
@@ -114,6 +124,6 @@ module.exports = {
     enabled: (process.env.REPORT_GAS === "true") ? true : false
   },
   mocha: {
-    timeout: 200000
+    timeout: 50000000
   }
 }

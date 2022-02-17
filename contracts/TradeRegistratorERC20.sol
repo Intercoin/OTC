@@ -3,12 +3,14 @@ pragma solidity ^0.8.11;
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+
 
 contract TradeRegistratorERC20 is Context {
 
     using SafeERC20 for IERC20;
-    using SignatureChecker for address;
 
     uint256 public lockTime = 2 hours;
 
@@ -100,10 +102,10 @@ contract TradeRegistratorERC20 is Context {
         TransferInfo memory transfer = transfers[_tradeHash];
         require(transfer.status == Status.REGISTERED, "trade not registered or finished");
         require(_msgSender() == transfer.receiver, "must be called by receiver");
-        require(_msgSender().isValidSignatureNow(_tradeHash, _signature), "signature is invalid");
+        require(isValidSignatureNow(_msgSender(), _tradeHash, _signature), "signature is invalid");
         uint256 penalty = calculatePenalty(_tradeHash);
         if (penalty > 0) transfers[_tradeHash].withdrawPenalty = penalty;
-        transfers[_tradeHash].signatures[0] = _signature;
+        transfers[_tradeHash].signatures.push(_signature);
         transfers[_tradeHash].status = Status.PUBLISHED;
     }
 
@@ -119,8 +121,8 @@ contract TradeRegistratorERC20 is Context {
         require(_msgSender() == transfer.receiver, "must be called by receiver");
         require(msg.value > transfer.withdrawPenalty, "not enough ETH");
         require(transfer.status == Status.REGISTERED || transfer.status == Status.PUBLISHED, "trade completed or failed");
-        require(transfer.poster.isValidSignatureNow(_tradeHash, _signatures[0]), "signature is invalid");
-        require(transfer.receiver.isValidSignatureNow(_tradeHash, _signatures[1]), "signature is invalid");
+        require(isValidSignatureNow(transfer.poster, _tradeHash, _signatures[0]), "signature is invalid");
+        require(isValidSignatureNow(transfer.receiver, _tradeHash, _signatures[1]), "signature is invalid");
         IERC20(transfer.asset).transfer(transfer.receiver, transfer.amount);
         transfers[_tradeHash].status = Status.COMPLETED;
 
@@ -156,5 +158,21 @@ contract TradeRegistratorERC20 is Context {
         } else {
             return transfer.maxPenalty * (block.timestamp - penaltyStartsAt) ** 2 / (penaltyIsMaxAt - penaltyStartsAt) ** 2;
         }
+    }
+
+    function isValidSignatureNow(
+        address signer,
+        bytes32 hash,
+        bytes memory signature
+    ) public view returns (bool) {
+        (address recovered, ECDSA.RecoverError error) = ECDSA.tryRecover(hash, signature);
+        if (error == ECDSA.RecoverError.NoError && recovered == signer) {
+            return true;
+        }
+
+        (bool success, bytes memory result) = signer.staticcall(
+            abi.encodeWithSelector(IERC1271.isValidSignature.selector, hash, signature)
+        );
+        return (success && result.length == 32 && abi.decode(result, (bytes4)) == IERC1271.isValidSignature.selector);
     }
 }
