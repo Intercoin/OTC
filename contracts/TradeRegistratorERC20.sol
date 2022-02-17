@@ -39,6 +39,14 @@ contract TradeRegistratorERC20 is Context {
         uint256 deadline
     );
 
+    /**
+    * @notice Returns registered signatures
+    * @param _tradeHash The hash of the trade parameters
+    * @param _index The index of the signature
+    */
+    function getSignature(bytes32 _tradeHash, uint256 _index) external view returns(bytes memory){
+        return transfers[_tradeHash].signatures[_index];
+    }
 
     /**
     * @notice blocks user's money for a certain amount of time and remembers the trade by its hash
@@ -119,7 +127,7 @@ contract TradeRegistratorERC20 is Context {
     function claim(bytes32 _tradeHash, bytes[] memory _signatures) external payable {
         TransferInfo memory transfer = transfers[_tradeHash];
         require(_msgSender() == transfer.receiver, "must be called by receiver");
-        require(msg.value > transfer.withdrawPenalty, "not enough ETH");
+        require(msg.value >= transfer.withdrawPenalty, "not enough penalty passed");
         require(transfer.status == Status.REGISTERED || transfer.status == Status.PUBLISHED, "trade completed or failed");
         require(isValidSignatureNow(transfer.poster, _tradeHash, _signatures[0]), "signature is invalid");
         require(isValidSignatureNow(transfer.receiver, _tradeHash, _signatures[1]), "signature is invalid");
