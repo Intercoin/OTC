@@ -8,11 +8,11 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 
-contract TradeRegistratorERC20 is Context {
+contract TradeRegistratorERC20Test is Context {
 
     using SafeERC20 for IERC20;
 
-    uint256 public lockTime = 2 hours;
+    uint256 public lockTime = 15 minutes;//2 hours;
 
     mapping(bytes32 => TransferInfo) public transfers;
 
@@ -106,7 +106,7 @@ contract TradeRegistratorERC20 is Context {
     * @param _tradeHash The hash of the trade
     * @param _signature The signature of the receiver
     */
-    function publish(bytes32 _tradeHash, bytes memory _signature) external {
+    function engage(bytes32 _tradeHash, bytes memory _signature) external {
         TransferInfo memory transfer = transfers[_tradeHash];
         require(transfer.status == Status.REGISTERED, "trade not registered or finished");
         require(_msgSender() == transfer.receiver, "must be called by receiver");
@@ -154,6 +154,10 @@ contract TradeRegistratorERC20 is Context {
         transfers[_tradeHash].status = Status.WITHDRAWN;
     }
 
+    /**
+    * @notice Calculates penalty for claim
+    * @param _tradeHash The hash of the trade
+    */
     function calculatePenalty(bytes32 _tradeHash) public view returns(uint256){
         TransferInfo memory transfer = transfers[_tradeHash];
         uint256 lockTime_ = lockTime;
