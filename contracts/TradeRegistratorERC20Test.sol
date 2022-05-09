@@ -4,9 +4,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/interfaces/IERC1271.sol";
-
 
 contract TradeRegistratorERC20Test is Context {
 
@@ -31,12 +28,33 @@ contract TradeRegistratorERC20Test is Context {
     }
 
     event NewTransfer(
+        bytes32 tradeHash,
         address poster,
         address asset,
         uint256 amount,
         address receiver,
         uint256 maxPenalty,
         uint256 deadline
+    );
+
+    event Engaged(
+        bytes32 tradeHash,
+        bytes signature,
+        address sender
+    );
+
+    event Claimed(
+        bytes32 tradeHash,
+        bytes[] signatures,
+        address sender,
+        uint256 penalty
+    );
+
+    event Withdrawn(
+        bytes32 tradeHash,
+        address token,
+        uint256 amount,
+        address receiver
     );
 
     /**
@@ -90,6 +108,7 @@ contract TradeRegistratorERC20Test is Context {
 
 
         emit NewTransfer(
+            _tradeHash,
             _msgSender(),
             _tokenAddress,
             _amount,
@@ -115,6 +134,7 @@ contract TradeRegistratorERC20Test is Context {
         if (penalty > 0) transfers[_tradeHash].withdrawPenalty = penalty;
         transfers[_tradeHash].signatures.push(_signature);
         transfers[_tradeHash].status = Status.PUBLISHED;
+        emit Engaged(_tradeHash, _signature, _msgSender());
     }
 
     /**
@@ -133,7 +153,7 @@ contract TradeRegistratorERC20Test is Context {
         require(isValidSignatureNow(transfer.receiver, _tradeHash, _signatures[1]), "signature is invalid");
         IERC20(transfer.asset).transfer(transfer.receiver, transfer.amount);
         transfers[_tradeHash].status = Status.COMPLETED;
-
+        emit Claimed(_tradeHash, _signatures, _msgSender(), transfer.withdrawPenalty);
     }   
 
     /**
@@ -152,6 +172,7 @@ contract TradeRegistratorERC20Test is Context {
         require(block.timestamp > transfer.deadline, "deadline isn't passed");
         IERC20(transfer.asset).safeTransfer(transfer.poster, transfer.amount);
         transfers[_tradeHash].status = Status.WITHDRAWN;
+        emit Withdrawn(_tradeHash, transfer.asset, transfer.amount, _msgSender());
     }
 
     /**
@@ -174,17 +195,13 @@ contract TradeRegistratorERC20Test is Context {
 
     function isValidSignatureNow(
         address signer,
-        bytes32 hash,
+        bytes32 tradeHash,
         bytes memory signature
-    ) public view returns (bool) {
-        (address recovered, ECDSA.RecoverError error) = ECDSA.tryRecover(hash, signature);
-        if (error == ECDSA.RecoverError.NoError && recovered == signer) {
-            return true;
-        }
-
-        (bool success, bytes memory result) = signer.staticcall(
-            abi.encodeWithSelector(IERC1271.isValidSignature.selector, hash, signature)
-        );
-        return (success && result.length == 32 && abi.decode(result, (bytes4)) == IERC1271.isValidSignature.selector);
+    ) public pure returns (bool) {
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        bytes memory prefixedMessage = abi.encodePacked(prefix, tradeHash);
+        bytes32 hashedPrefixedMessage = keccak256(prefixedMessage);
+        address recovered = ECDSA.recover(hashedPrefixedMessage, signature);
+        return recovered == signer;        
     }
 }
